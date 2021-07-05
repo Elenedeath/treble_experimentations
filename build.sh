@@ -10,6 +10,12 @@ if [ -z "$USER" ];then
 fi
 export LC_ALL=C
 
+if [[ $(uname -s) = "Darwin" ]];then
+    jobs=$(sysctl -n hw.ncpu)
+elif [[ $(uname -s) = "Linux" ]];then
+    jobs=$(nproc)
+fi
+
 manifest_url="https://android.googlesource.com/platform/manifest"
 aosp="android-8.1.0_r65"
 phh="android-8.1"
@@ -62,7 +68,7 @@ else
 		git clone https://github.com/phhusson/treble_manifest .repo/local_manifests -b $phh
 	fi
 fi
-repo sync -c -j 1 --force-sync
+repo sync -c -j "$jobs" --force-sync
 
 repo forall -r '.*opengapps.*' -c 'git lfs fetch && git lfs checkout'
 (cd device/phh/treble; git clean -fdx; bash generate.sh)
@@ -74,7 +80,7 @@ rm -f vendor/gapps/interfaces/wifi_ext/Android.bp
 buildVariant() {
 	lunch $1
 	make BUILD_NUMBER=$rom_fp installclean
-	make BUILD_NUMBER=$rom_fp -j8 systemimage
+	make BUILD_NUMBER=$rom_fp -j "$jobs" systemimage
 	make BUILD_NUMBER=$rom_fp vndk-test-sepolicy
 	xz -c $OUT/system.img -T0 > release/$rom_fp/system-${2}.img.xz
 }
